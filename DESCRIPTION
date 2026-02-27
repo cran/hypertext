@@ -1,0 +1,26 @@
+Package: hypertext
+Title: 'HTML' Element Construction
+Version: 1.0.0
+Authors@R: 
+    c(
+      person("Kennedy", "Mwavu", , "mwavukennedy@gmail.com", role = c("aut", "cre"),
+           comment = c(ORCID = "0009-0006-3157-7234")),
+      person("Sigflux", role = c("cph", "fnd"))
+    )
+Description: Provides a deterministic, framework-agnostic Domain-Specific Language for building
+    'HTML' nodes and rendering them to a string.
+License: MIT + file LICENSE
+URL: https://github.com/sigflux/hypertext
+BugReports: https://github.com/sigflux/hypertext/issues
+Encoding: UTF-8
+RoxygenNote: 7.3.3
+Suggests: testthat (>= 3.0.0)
+Config/testthat/edition: 3
+NeedsCompilation: no
+Packaged: 2026-02-23 02:52:02 UTC; mwavu
+Author: Kennedy Mwavu [aut, cre] (ORCID:
+    <https://orcid.org/0009-0006-3157-7234>),
+  Sigflux [cph, fnd]
+Maintainer: Kennedy Mwavu <mwavukennedy@gmail.com>
+Repository: CRAN
+Date/Publication: 2026-02-27 20:00:02 UTC
