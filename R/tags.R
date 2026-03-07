@@ -98,17 +98,38 @@
 #' Create an HTML element node
 #'
 #' Low-level constructor. Named arguments become attributes; unnamed
-#' arguments become children (text or nested nodes). This function is
-#' used internally by every entry in the [tags] list.
+#' arguments become children (text or nested nodes).
 #'
-#' @param tag_name Character scalar -- the HTML element name.
-#' @param ... Attributes (named) and children (unnamed).
-#' @param .void Logical; if `TRUE` the element is self-closing and
-#'   children are ignored.
-#' @return A list of class `"hypertext.tag"` with components `tag`, `attrs`,
-#'   and `children`.
-#' @keywords internal
-.tag <- function(tag_name, ..., .void = FALSE) {
+#' @param tag_name String /// Required.
+#'                 The HTML element name.
+#'
+#' @param ... Attributes (named) and children (unnamed) /// Optional.
+#'
+#' @param tag_type String /// Optional.
+#'                 Either `"normal"` (default) for a standard
+#'                 element with children, or `"void"` for a self-closing element
+#'                 whose children are ignored.
+#'
+#' @return List of class `"hypertext.tag"` with components `tag`, `attrs`,
+#'        `children`, and `tag_type`.
+#'
+#' @examples
+#' # web component
+#' tag(tag_name = "calcite-action-bar", layout = "horizontal")
+#'
+#' # custom element with children
+#' tag(
+#'   tag_name = "my-card",
+#'   class = "shadow",
+#'   tag(tag_name = "my-card-header", "Title"),
+#'   tag(tag_name = "my-card-body", "Content")
+#' )
+#'
+#' # custom void element
+#' tag(tag_name = "my-icon", name = "home", tag_type = "void")
+#' @export
+tag <- function(tag_name, ..., tag_type = c("normal", "void")) {
+  tag_type <- match.arg(arg = tag_type)
   dots <- list(...)
 
   nms <- names(dots)
@@ -120,7 +141,7 @@
   attrs <- dots[attrs_lgl]
 
   children <- list()
-  if (isFALSE(.void)) {
+  if (identical(tag_type, "normal")) {
     # flatten any bare lists among children so users can splice
     children <- .flatten_children(
       dots[!attrs_lgl]
@@ -131,17 +152,83 @@
     list(
       tag = tag_name,
       attrs = attrs,
-      children = children
+      children = children,
+      tag_type = tag_type
     ),
     class = "hypertext.tag"
   )
 }
 
+#' Create a tag list (sibling container)
+#'
+#' Useful when you want to collect sibling nodes into a single
+#' object without wrapping them in a parent element.
+#'
+#' @param ... Tags, text, or other renderable objects /// Optional.
+#'
+#' @return A list of class `"hypertext.tag.list"`.
+#'
+#' @examples
+#' tl <- tag_list(tags$p("one"), tags$p("two"))
+#' render(tl)
+#' @export
+tag_list <- function(...) {
+  structure(
+    list(...),
+    class = c("hypertext.tag.list", "list")
+  )
+}
+
+#' Mark a string as raw HTML
+#'
+#' Wraps one or more character strings so that [render()] outputs them
+#' verbatim, **without** escaping HTML special characters.
+#'
+#' This is useful for injecting pre-rendered HTML, inline
+#' `<script>`/`<style>` blocks, SVG markup, or any content that should
+#' not be entity-escaped.
+#'
+#' @param ... Character strings of raw HTML /// Optional.
+#'
+#' @return A character vector of class `"hypertext.raw"`.
+#'
+#' @examples
+#' raw_html("<script>alert('hi')</script>")
+#' render(tags$div(raw_html("<em>already formatted</em>")))
+#' @export
+raw_html <- function(...) {
+  structure(
+    paste(..., collapse = ""),
+    class = "hypertext.raw"
+  )
+}
+
+#' Render the `<!DOCTYPE html>` declaration
+#'
+#' Convenience wrapper around [raw_html()] that returns the
+#' HTML5 document-type declaration. Useful when building a full page.
+#'
+#' @return A `"hypertext.raw"` object containing `<!DOCTYPE html>`.
+#'
+#' @examples
+#' page <- tag_list(
+#'   doctype(),
+#'   tags$html(
+#'     tags$head(tags$title("Home")),
+#'     tags$body(tags$h1("Welcome"))
+#'   )
+#' )
+#' render(page)
+#' @export
+doctype <- function() {
+  raw_html("<!DOCTYPE html>")
+}
+
 #' Flatten children
 #'
-#' Recursively unpack plain lists (but not `hypertext.tag` nodes) so users
-#' can pass `list(tags$li("a"), tags$li("b"))` as a single child
-#' argument.
+#' Recursively unpack plain lists (but not `hypertext.tag` or
+#' `hypertext.tag.list` nodes) so users can pass
+#' `list(tags$li("a"), tags$li("b"))` as a single child argument.
 #'
 #' @param x A list of children.
 #' @return A flat list of children.
@@ -149,7 +236,12 @@
 .flatten_children <- function(x) {
   out <- list()
   for (el in x) {
-    if (is.list(el) && !inherits(el, "hypertext.tag")) {
+    if (
+      is.list(el) &&
+        !inherits(el, "hypertext.tag") &&
+        !inherits(el, "hypertext.tag.list") &&
+        !inherits(el, "hypertext.raw")
+    ) {
       out <- c(out, .flatten_children(el))
       next
     }
@@ -162,28 +254,89 @@
 
 # -- rendering -------------------------------------------------------
 
+.maybe_write <- function(
+  html,
+  file = "",
+  write_mode = c("overwrite", "append")
+) {
+  if (identical(file, "")) {
+    return(html)
+  }
+
+  write_mode <- match.arg(arg = write_mode)
+
+  cat(
+    html,
+    file = file,
+    append = identical(write_mode, "append")
+  )
+
+  invisible(html)
+}
+
 #' Render an HTML node tree to a character string
 #'
-#' Converts an `hypertext.tag` object (and all its descendants) into an HTML
+#' Converts a `hypertext.tag` object (and all its descendants) into an HTML
 #' string. Text children are escaped; nested `hypertext.tag` children are
 #' rendered recursively.
 #'
-#' @param x An `hypertext.tag` object, a character string, or a list of these.
+#' When `file` is provided, the rendered HTML is written to the specified
+#' file via [cat()] and the HTML string is returned
+#' invisibly.
+#'
+#' @param x `hypertext.tag` object, a string, or a list of these /// Required.
+#'
+#' @param file String /// Optional.
+#'            Path to file to print to.
+#'
+#' @param write_mode String /// Optional.
+#'                   Either "overwrite" (default) which overwrites the contents
+#'                   of `file`, or "append" which appends the HTML string to
+#'                   `file`.
+#'
+#' @param ... Further arguments passed from or to other methods.
+#'
 #' @return A single character string of HTML.
+#'
+#' @examples
+#' page <- tags$html(
+#'   tags$head(
+#'     tags$title("Home")
+#'   ),
+#'   tags$body(
+#'     tags$h1("Welcome")
+#'   )
+#' )
+#'
+#' # return HTML as a string:
+#' render(page)
+#'
+#' \dontrun{
+#'   # write to a file:
+#'   render(page, file = "index.html")
+#' }
+#'
 #' @export
-render <- function(x) {
+render <- function(x, ...) {
   UseMethod("render")
 }
 
 #' @rdname render
 #' @export
-render.hypertext.tag <- function(x) {
+render.hypertext.tag <- function(
+  x,
+  file = "",
+  write_mode = c("overwrite", "append"),
+  ...
+) {
   attr_str <- .render_attrs(x$attrs)
-  is_void <- x$tag %in% .void_elements
+  is_void <- identical(x$tag_type, "void") || x$tag %in% .void_elements
 
   if (is_void) {
+    html <- paste0("<", x$tag, attr_str, " />")
+
     return(
-      paste0("<", x$tag, attr_str, " />")
+      .maybe_write(html = html, file = file, write_mode = write_mode)
     )
   }
 
@@ -196,19 +349,46 @@ render.hypertext.tag <- function(x) {
     collapse = ""
   )
 
-  paste0("<", x$tag, attr_str, ">", inner, "</", x$tag, ">")
+  html <- paste0("<", x$tag, attr_str, ">", inner, "</", x$tag, ">")
+
+  .maybe_write(html = html, file = file, write_mode = write_mode)
 }
 
 #' @rdname render
 #' @export
-render.default <- function(x) {
-  .escape_html(as.character(x))
+render.default <- function(
+  x,
+  file = "",
+  write_mode = c("overwrite", "append"),
+  ...
+) {
+  html <- .escape_html(as.character(x))
+
+  .maybe_write(html = html, file = file, write_mode = write_mode)
 }
 
 #' @rdname render
 #' @export
-render.list <- function(x) {
-  paste(
+render.hypertext.raw <- function(
+  x,
+  file = "",
+  write_mode = c("overwrite", "append"),
+  ...
+) {
+  html <- as.character(x)
+
+  .maybe_write(html = html, file = file, write_mode = write_mode)
+}
+
+#' @rdname render
+#' @export
+render.list <- function(
+  x,
+  file = "",
+  write_mode = c("overwrite", "append"),
+  ...
+) {
+  html <- paste(
     vapply(
       X = x,
       FUN = render,
@@ -216,6 +396,8 @@ render.list <- function(x) {
     ),
     collapse = ""
   )
+
+  .maybe_write(html = html, file = file, write_mode = write_mode)
 }
 
 # -- print method ----------------------------------------------------
@@ -226,6 +408,12 @@ print.hypertext.tag <- function(x, ...) {
   invisible(x)
 }
 
+#' @export
+print.hypertext.tag.list <- print.hypertext.tag
+
+#' @export
+print.hypertext.raw <- print.hypertext.tag
+
 # -- tag factory helpers ---------------------------------------------
 
 #' Create a tag function for a normal (non-void) element
@@ -234,7 +422,7 @@ print.hypertext.tag <- function(x, ...) {
   force(tag_name)
 
   function(...) {
-    .tag(
+    tag(
       tag_name,
       ...
     )
@@ -247,10 +435,10 @@ print.hypertext.tag <- function(x, ...) {
   force(tag_name)
 
   function(...) {
-    .tag(
+    tag(
       tag_name,
       ...,
-      .void = TRUE
+      tag_type = "void"
     )
   }
 }
