@@ -1,14 +1,14 @@
-f5a1976dcd75f4eaaab2ac22ebffa1b5 *DESCRIPTION
+5217706dbdd33e5b86adec4a0e24e3bf *DESCRIPTION
 af1221b34fca093453a888e27b8f6f16 *LICENSE
 71b828125c8bcd9a2617958c94e52730 *NAMESPACE
-b5891f7fde8369f3c899a4f3c91a454a *R/tags.R
+7503a8f3d23517796474dff3dfaa071b *R/tags.R
 90981cbf1d3e36be46687eb917d8d5da *README.md
 d0739442c5aaf172833d691e3e8b9046 *man/doctype.Rd
 f5e6d03518507e099295b2df075c1232 *man/raw_html.Rd
 6d3179428f744189996000d2b4137ded *man/render.Rd
 1286608ed6760382019bec171eae8260 *man/tag.Rd
 74f6dd7d1ac3162fdf115e449612d59b *man/tag_list.Rd
-b9a7d249c377fa5eeb7bcb710687510c *man/tags.Rd
+ec65e62d19815742ad3eb9f2135c0911 *man/tags.Rd
 721279885a06f31492359dd738480a8d *tests/testthat.R
 cf1f3e5da1009dd717fa5d26bc6acf4f *tests/testthat/test-doctype.R
 c8594b662e8badf13bb9485391ef00cc *tests/testthat/test-escape_html.R
@@ -20,6 +20,6 @@ c8594b662e8badf13bb9485391ef00cc *tests/testthat/test-escape_html.R
 2297c0205203c28d024b4fe268dfb46c *tests/testthat/test-render.R
 0fb8b4ae2fd50a91bd6758a8e03a7d95 *tests/testthat/test-render_attrs.R
 ba8a43cac926713a67fbd8ddbcbf899b *tests/testthat/test-tag.R
-ef9bdbd3f5f7b858955beb8178870828 *tests/testthat/test-tag_factories.R
+452c61a531bb5f8131bf262d3a1236ec *tests/testthat/test-tag_factories.R
 15a95a80b7eff8abfa67c3f4fa9c1b2e *tests/testthat/test-tag_list.R
 c64653d8849ee78203703bfac60d1ace *tests/testthat/test-trailing_commas.R
